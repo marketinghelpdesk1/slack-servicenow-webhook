@@ -4,61 +4,55 @@ import os
 
 app = Flask(__name__)
 
-SN_INSTANCE = os.getenv("SN_INSTANCE")
-SN_USER = os.getenv("SN_USER")
-SN_PASS = os.getenv("SN_PASS")
-SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
+# ServiceNow and Slack environment variables
+SERVICENOW_INSTANCE = os.environ.get("SERVICENOW_INSTANCE")  # e.g., 'dev12345'
+SERVICENOW_USERNAME = os.environ.get("SERVICENOW_USERNAME")
+SERVICENOW_PASSWORD = os.environ.get("SERVICENOW_PASSWORD")
+SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN")  # xoxb-xxx
+HEADERS = {"Authorization": f"Bearer {SLACK_BOT_TOKEN}"}
 
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    data = request.json
-    text = data.get("text", "")
-    user = data.get("user", "")
-    channel = data.get("channel")
-    thread_ts = data.get("thread_ts")
+@app.route("/", methods=["GET"])
+def healthcheck():
+    return "Flask app is running!"
 
-    # Step 1: Create incident in ServiceNow
-    headers = {
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-    }
+@app.route("/slack", methods=["POST"])
+def handle_slack():
+    data = request.form
+    user = data.get("user_name")
+    text = data.get("text")
+    channel_id = data.get("channel_id")
+    response_url = data.get("response_url")
 
+    # Create ServiceNow ticket
+    sn_url = f"https://{SERVICENOW_INSTANCE}.service-now.com/api/now/table/incident"
     payload = {
-        "short_description": f"Issue from Slack user {user}",
-        "description": text,
+        "short_description": f"Issue from {user}: {text}",
+        "description": f"Slack user {user} reported: {text}",
+        "assignment_group": "Hardware",  # Or change this as needed
         "caller_id": user
     }
 
     response = requests.post(
-        f"{SN_INSTANCE}/api/now/table/incident",
-        auth=(SN_USER, SN_PASS),
-        headers=headers,
-        json=payload
+        sn_url,
+        auth=(SERVICENOW_USERNAME, SERVICENOW_PASSWORD),
+        json=payload,
+        headers={"Content-Type": "application/json"}
     )
 
     if response.status_code == 201:
-        number = response.json()["result"]["number"]
-        reply_text = f"✅ Incident created: *{number}*"
+        incident_number = response.json()["result"]["number"]
+        reply = f":white_check_mark: Created ServiceNow ticket *{incident_number}* for your issue."
     else:
-        reply_text = f"⚠️ Failed to create incident. Status: {response.status_code}"
+        reply = f":x: Failed to create ServiceNow ticket. Error: {response.text}"
 
-    # Step 2: Reply back in Slack
-    slack_response = requests.post(
-        "https://slack.com/api/chat.postMessage",
-        headers={
-            "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
-            "Content-Type": "application/json"
-        },
-        json={
-            "channel": channel,
-            "text": reply_text,
-            "thread_ts": thread_ts
-        }
-    )
+    # Post reply to Slack
+    slack_response = {
+        "response_type": "in_channel",
+        "text": reply
+    }
+    requests.post(response_url, json=slack_response)
 
-    return jsonify({"message": "Processed"}), 200
+    return "", 200
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
-
-
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
