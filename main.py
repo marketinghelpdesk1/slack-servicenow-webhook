@@ -27,7 +27,7 @@ def handle_slack_form():
 
     # Map Slack channel to assignment group (customize this)
     assignment_group = {
-        'math-team': 'Math Support',
+        'math-team': 'Math Support', 'math team', 'math room', 
         'science-team': 'Science Support'
     }.get(data.get('channel_name'), 'General IT Support')
 
@@ -69,3 +69,4 @@ def handle_slack_form():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
