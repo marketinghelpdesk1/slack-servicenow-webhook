@@ -84,7 +84,8 @@ def handle_slack_form():
         else:
             logging.info("Posted confirmation to Slack.")
 
-        return jsonify({"status": "ok", "incident": incident_number}), 200
+        #return jsonify({"status": "ok", "incident": incident_number}), 200
+         return '', 200
 
     except Exception as e:
         logging.exception("Unhandled error during Slack request")
@@ -92,4 +93,5 @@ def handle_slack_form():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
 
