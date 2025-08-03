@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO)
 SERVICENOW_INSTANCE = "dev351449.service-now.com"
 SERVICENOW_USER = "admin"
 SERVICENOW_PASSWORD = "az5CI1uA!Mm@"
-SLACK_BOT_TOKEN = "xoxb-9290586945379-9317287104928-vz9WAJCypCU6OGkBHs4TO0gn"
+SLACK_BOT_TOKEN = "xoxb-9290586945379-9317287104928-ssbu5IafnL1Kv51rBrxZtF61"
 
 # Channel to assignment group map
 channel_to_assignment_group = {
@@ -98,3 +98,4 @@ def process_request(data):
 
 if __name__ == "__main__":
     app.run(debug=True)
+
