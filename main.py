@@ -26,10 +26,15 @@ def handle_slack_form():
         thread_ts = data.get('ts', '0')
 
     # Map Slack channel to assignment group (customize this)
-    assignment_group = {
-        'math-team': 'Math Support': 'math team': 'math room': 
-        'science-team': 'Science Support'
-    }.get(data.get('channel_name'), 'General IT Support')
+assignment_group = {
+    'math-team': 'Math Support',
+    'math team': 'Math Support',
+    'math room': 'Math Support',
+    'science-team': 'Science Support',
+    'science team': 'Science Support',
+    'science room': 'Science Support'
+}.get(data.get('channel_name'), 'General IT Support')
+
 
     # Create ServiceNow incident
     url = f"https://{SERVICENOW_INSTANCE}/api/now/table/incident"
@@ -69,5 +74,6 @@ def handle_slack_form():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
 
 
