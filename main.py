@@ -35,7 +35,6 @@ assignment_group = {
     'science room': 'Science Support'
 }.get(data.get('channel_name'), 'General IT Support')
 
-
     # Create ServiceNow incident
     url = f"https://{SERVICENOW_INSTANCE}/api/now/table/incident"
     payload = {
@@ -74,6 +73,7 @@ assignment_group = {
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
 
 
 
