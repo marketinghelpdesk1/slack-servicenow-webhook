@@ -8,8 +8,8 @@ logging.basicConfig(level=logging.INFO)
 
 # Hardcoded for testing; replace with os.environ.get(...) in production
 SERVICENOW_INSTANCE = "dev351449.service-now.com"
-SERVICENOW_USER = os.environ.get("SERVICENOW_USER", "YOUR_USERNAME")
-SERVICENOW_PASSWORD = os.environ.get("SERVICENOW_PASSWORD", "YOUR_PASSWORD")
+SERVICENOW_USER = "admin"
+SERVICENOW_PASSWORD = "az5CI1uA!Mm@"
 SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN", "xoxb-YOUR-SLACK-TOKEN")
 
 @app.route('/')
@@ -92,3 +92,4 @@ def handle_slack_form():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
