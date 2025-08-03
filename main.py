@@ -5,7 +5,7 @@ import os
 app = Flask(__name__)
 
 # ENV variables (set these in Railway or your environment)
-SERVICENOW_INSTANCE = os.environ.get("SERVICENOW_INSTANCE")   # e.g. dev12345.service-now.com
+SERVICENOW_INSTANCE = "dev351449.service-now.com"
 SERVICENOW_USER = os.environ.get("SERVICENOW_USER")
 SERVICENOW_PASSWORD = os.environ.get("SERVICENOW_PASSWORD")
 SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN")
@@ -72,3 +72,4 @@ def handle_slack_form():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
