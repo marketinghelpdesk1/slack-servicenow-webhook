@@ -16,7 +16,7 @@ SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN", "xoxb-YOUR-SLACK-TOKEN")
 def index():
     return 'Flask app is running!'
 
-@app.route('/slack', methods=['POST'])
+@app.route('/report-issue', methods=['POST'])
 def handle_slack_form():
     try:
         data = request.form
@@ -93,6 +93,7 @@ def handle_slack_form():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
 
 
 
