@@ -1,78 +1,98 @@
+update flask code: 08042025
+
 from flask import Flask, request, jsonify
-import json
 import requests
+import os
 import logging
 
 app = Flask(__name__)
-
 logging.basicConfig(level=logging.INFO)
 
-# Update these as needed
-SERVICENOW_URL = "dev351449.service-now.com/api/now/table/incident"
+# Hardcoded for testing; replace with os.environ.get(...) in production
+SERVICENOW_INSTANCE = "dev351449.service-now.com"
 SERVICENOW_USER = "admin"
 SERVICENOW_PASSWORD = "az5CI1uA!Mm@"
+SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN", "xoxb-YOUR-SLACK-TOKEN")
 
-CHANNEL_TO_ASSIGNMENT_GROUP = {
-    "math-team": "Math Support",
-    "science-team": "Science Support"
-}
-
-@app.route("/", methods=["GET"])
+@app.route('/')
 def index():
-    return "Slack to ServiceNow webhook is running."
+    return 'Flask app is running!'
 
-@app.route("/slack", methods=["POST"])
-def slack_handler():
-    payload = request.form
+@app.route('/slack', methods=['POST'])
+def handle_slack_form():
+    try:
+        data = request.form
+        logging.info(f"Received Slack form data: {data}")
 
-    logging.info("Received form: %s", payload)
+        user = data.get('user_name')
+        text = data.get('text')
+        thread_ts = data.get('thread_ts') or data.get('ts')
+        channel_id = data.get('channel_id')
+        channel_name = data.get('channel_name', '').lower()
 
-    text = payload.get("text", "")
-    user_id = payload.get("user_id")
-    channel_name = payload.get("channel_name")
-    response_url = payload.get("response_url")
-    thread_ts = payload.get("thread_ts") or payload.get("ts")  # fallback if thread_ts is missing
+        # Map Slack channel name to assignment group
+        channel_to_assignment_group = {
+            'math-team': 'Math Support',
+            'math team': 'Math Support',
+            'math room': 'Math Support',
+            'science-team': 'Science Support',
+            'science team': 'Science Support',
+            'science room': 'Science Support',
+        }
 
-    # Determine assignment group
-    assignment_group = CHANNEL_TO_ASSIGNMENT_GROUP.get(channel_name, "Default Support")
+        assignment_group = channel_to_assignment_group.get(channel_name, 'General IT Support')
+        logging.info(f"Resolved assignment group: {assignment_group}")
 
-    # Create incident in ServiceNow
-    incident_data = {
-        "short_description": f"Issue from {channel_name} via Slack",
-        "description": f"{text}\nReported by Slack user <@{user_id}>",
-        "assignment_group": assignment_group,
-        "caller_id": "Slack Integration",
-        "category": "Inquiry / Help"
-    }
+        # Prepare ServiceNow payload
+        url = f"https://{SERVICENOW_INSTANCE}/api/now/table/incident"
+        payload = {
+            "short_description": f"Slack issue from {user}",
+            "description": text,
+            "assignment_group": assignment_group,
+            "caller_id": user
+        }
 
-    logging.info("Sending incident to ServiceNow: %s", incident_data)
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        }
 
-    response = requests.post(
-        SERVICENOW_URL,
-        auth=(SERVICENOW_USER, SERVICENOW_PASSWORD),
-        headers={"Content-Type": "application/json"},
-        data=json.dumps(incident_data)
-    )
+        logging.info(f"Sending request to ServiceNow: {url} | Payload: {payload}")
+        response = requests.post(url, json=payload, auth=(SERVICENOW_USER, SERVICENOW_PASSWORD), headers=headers)
 
-    if response.status_code in [200, 201]:
-        incident = response.json().get("result", {})
-        number = incident.get("number", "INCXXXX")
-        message = f":white_check_mark: Incident *{number}* created and assigned to *{assignment_group}*."
-    else:
-        logging.error("Failed to create incident: %s", response.text)
-        message = f":x: Failed to create ServiceNow ticket. Error: {response.status_code}"
+        if response.status_code != 201:
+            logging.error(f"ServiceNow error: {response.status_code} - {response.text}")
+            return jsonify({"error": "Failed to create incident", "details": response.text}), 500
 
-    # Post back to Slack via response_url
-    slack_reply = {
-        "response_type": "in_channel",
-        "text": message
-    }
+        incident = response.json()['result']
+        incident_number = incident['number']
+        logging.info(f"Created ServiceNow incident: {incident_number}")
 
-    logging.info("Posting back to Slack: %s", slack_reply)
+        # Send reply to Slack thread
+        slack_url = "https://slack.com/api/chat.postMessage"
+        slack_headers = {
+            "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
+            "Content-Type": "application/json"
+        }
+        slack_payload = {
+            "channel": channel_id,
+            "thread_ts": thread_ts,
+            "text": f":white_check_mark: Incident *{incident_number}* created in ServiceNow."
+        }
 
-    requests.post(response_url, json=slack_reply)
+        slack_resp = requests.post(slack_url, json=slack_payload, headers=slack_headers)
+        if not slack_resp.ok:
+            logging.error(f"Failed to post to Slack: {slack_resp.status_code} - {slack_resp.text}")
+        else:
+            logging.info("Posted confirmation to Slack.")
 
-    return "", 200
+        return jsonify({"status": "ok", "incident": incident_number}, "created in SN"), 200
 
-if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=8000)
+    except Exception as e:
+        logging.exception("Unhandled error during Slack request")
+        return jsonify({"error": "Server error", "details": str(e)}), 500
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
+
+
