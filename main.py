@@ -98,7 +98,7 @@ def notify_resolved():
     logging.info(f"Received resolved incident notification: {data}")
 
     channel_id = data.get("channel_id")
-    thread_ts = data.get("thread_ts")
+  #  thread_ts = data.get("thread_ts")
     incident_number = data.get("incident_number")
 
     if not (channel_id and thread_ts and incident_number):
@@ -113,7 +113,7 @@ def notify_resolved():
 
     slack_payload = {
         "channel": channel_id,
-        "thread_ts": thread_ts,
+       # "thread_ts": thread_ts,
         "text": message
     }
 
