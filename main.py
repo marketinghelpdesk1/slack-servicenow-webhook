@@ -6,7 +6,7 @@ import logging
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
-# Hardcoded for now
+# Hardcoded for now (move to env variables in production!)
 SERVICENOW_INSTANCE = "dev351449.service-now.com"
 SERVICENOW_USER = "admin"
 SERVICENOW_PASSWORD = "az5CI1uA!Mm@"
@@ -28,7 +28,6 @@ def handle_slack_form():
         channel_id = data.get('channel_id')
         channel_name = data.get('channel_name', '').lower()
 
-        # Map channel name to assignment group
         channel_to_assignment_group = {
             'math-team': 'Math Support',
             'math team': 'Math Support',
@@ -41,7 +40,6 @@ def handle_slack_form():
         assignment_group = channel_to_assignment_group.get(channel_name, 'General IT Support')
         logging.info(f"Resolved assignment group: {assignment_group}")
 
-        # Create incident in ServiceNow
         url = f"https://{SERVICENOW_INSTANCE}/api/now/table/incident"
         payload = {
             "short_description": f"Slack issue from {user}",
@@ -66,7 +64,6 @@ def handle_slack_form():
         incident_number = incident['number']
         logging.info(f"Created ServiceNow incident: {incident_number}")
 
-        # ✅ Post message to Slack (in thread)
         slack_url = "https://slack.com/api/chat.postMessage"
         slack_headers = {
             "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
@@ -77,7 +74,6 @@ def handle_slack_form():
             "text": f":white_check_mark: ServiceNow ticket *{incident_number}* created successfully.",
         }
 
-        # If original message had thread_ts, reply in thread
         if thread_ts:
             slack_payload["thread_ts"] = thread_ts
 
@@ -87,7 +83,6 @@ def handle_slack_form():
         else:
             logging.info("Posted confirmation to Slack thread.")
 
-        # ✅ Respond quickly to Slack (only user sees this)
         return jsonify(
             {
                 "response_type": "ephemeral",
@@ -99,5 +94,4 @@ def handle_slack_form():
         logging.exception("Unhandled error during Slack request")
         return jsonify({"error": "Server error", "details": str(e)}), 500
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+# ✅ Do NOT include app.run() for Railway — handled by Gunicorn
