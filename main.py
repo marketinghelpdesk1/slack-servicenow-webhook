@@ -73,7 +73,7 @@ def handle_slack_form():
 
         # Post to the channel using response_url
         slack_payload = {
-            "text": f":white_check_mark: Incident *{incident_number}* created in ServiceNow.",
+            "text": f":white_check_mark: Incident *{incident_number}* created in ServiceNow. working na yata",
             "response_type": "in_channel",  # This makes the message visible to everyone
             "replace_original": False
         }
@@ -93,3 +93,4 @@ def handle_slack_form():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
