@@ -1,27 +1,16 @@
-from flask import Flask, request, jsonify
-import requests
-import os
-import logging
-
-app = Flask(__name__)
-logging.basicConfig(level=logging.INFO)
-
-# Hardcoded for testing; replace with os.environ.get(...) in production
-SERVICENOW_INSTANCE = "dev351449.service-now.com"
-SERVICENOW_USER = "admin"
-SERVICENOW_PASSWORD = "az5CI1uA!Mm@"
-SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN", "xoxb-YOUR-SLACK-TOKEN")
-
-@app.route('/')
-def index():
-    return 'Flask app is running!'
+from threading import Thread
 
 @app.route('/slack', methods=['POST'])
 def handle_slack_form():
-    try:
-        data = request.form
-        logging.info(f"Received Slack form data: {data}")
+    data = request.form
+    logging.info(f"Received Slack form data: {data}")
 
+    # Immediate response to Slack
+    Thread(target=process_slack_request, args=(data,)).start()
+    return '', 200
+
+def process_slack_request(data):
+    try:
         user = data.get('user_name')
         text = data.get('text')
         thread_ts = data.get('thread_ts') or data.get('ts')
@@ -41,7 +30,7 @@ def handle_slack_form():
         assignment_group = channel_to_assignment_group.get(channel_name, 'General IT Support')
         logging.info(f"Resolved assignment group: {assignment_group}")
 
-        # Prepare ServiceNow payload
+        # ServiceNow API call
         url = f"https://{SERVICENOW_INSTANCE}/api/now/table/incident"
         payload = {
             "short_description": f"Slack issue from {user}",
@@ -60,13 +49,13 @@ def handle_slack_form():
 
         if response.status_code != 201:
             logging.error(f"ServiceNow error: {response.status_code} - {response.text}")
-            return jsonify({"error": "Failed to create incident", "details": response.text}), 500
+            return
 
         incident = response.json()['result']
         incident_number = incident['number']
         logging.info(f"Created ServiceNow incident: {incident_number}")
 
-        # Send reply to Slack thread
+        # Post back to Slack thread
         slack_url = "https://slack.com/api/chat.postMessage"
         slack_headers = {
             "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
@@ -84,18 +73,5 @@ def handle_slack_form():
         else:
             logging.info("Posted confirmation to Slack.")
 
-        #return jsonify({"status": "ok", "incident": incident_number}, "created in SN"), 200
-        return '', 200
-
     except Exception as e:
-        logging.exception("Unhandled error during Slack request")
-        return jsonify({"error": "Server error", "details": str(e)}), 500
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
-
-
-
-
-
-
+        logging.exception("Error processing Slack request.")
