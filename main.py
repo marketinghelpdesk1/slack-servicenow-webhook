@@ -1,103 +1,97 @@
+import os
 from flask import Flask, request, jsonify
 import requests
-import os
 import logging
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
-# Hardcoded for now
-SERVICENOW_INSTANCE = "dev351449.service-now.com"
-SERVICENOW_USER = "admin"
-SERVICENOW_PASSWORD = "az5CI1uA!Mm@"
-SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN", "xoxb-YOUR-SLACK-TOKEN")
+# --- Configuration (use environment variables or hardcoded temporarily) ---
+SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN", "xoxb-your-bot-token")
+SERVICENOW_INSTANCE = os.getenv("SERVICENOW_INSTANCE", "https://dev12345.service-now.com")
+SERVICENOW_USERNAME = os.getenv("SERVICENOW_USERNAME", "admin")
+SERVICENOW_PASSWORD = os.getenv("SERVICENOW_PASSWORD", "yourpassword")
 
-@app.route('/')
-def index():
-    return 'Flask app is running!'
+# Optional: simple channel to assignment group mapping
+CHANNEL_TO_ASSIGNMENT_GROUP = {
+    "all-math-team": "General IT Support",
+    "science-team": "Network Support",
+    # Add more as needed
+}
 
-@app.route('/slack', methods=['POST'])
-def handle_slack_form():
-    try:
-        data = request.form
-        logging.info(f"Received Slack form data: {data}")
 
-        user = data.get('user_name')
-        text = data.get('text')
-        thread_ts = data.get('thread_ts') or data.get('ts') or None
-        channel_id = data.get('channel_id')
-        channel_name = data.get('channel_name', '').lower()
+@app.route("/")
+def home():
+    return "Server is running!"
 
-        # Map channel name to assignment group
-        channel_to_assignment_group = {
-            'math-team': 'Math Support',
-            'math team': 'Math Support',
-            'math room': 'Math Support',
-            'science-team': 'Science Support',
-            'science team': 'Science Support',
-            'science room': 'Science Support',
-        }
 
-        assignment_group = channel_to_assignment_group.get(channel_name, 'General IT Support')
-        logging.info(f"Resolved assignment group: {assignment_group}")
+@app.route("/slack", methods=["POST"])
+def handle_slack():
+    # Extract form data from Slack
+    form_data = request.form
+    logging.info(f"Received Slack form data: {form_data}")
 
-        # Create incident in ServiceNow
-        url = f"https://{SERVICENOW_INSTANCE}/api/now/table/incident"
-        payload = {
-            "short_description": f"Slack issue from {user}",
-            "description": text,
-            "assignment_group": assignment_group,
-            "caller_id": user
-        }
+    channel_id = form_data.get("channel_id")
+    channel_name = form_data.get("channel_name")
+    user_name = form_data.get("user_name")
+    message_text = form_data.get("text", "")
+    thread_ts = form_data.get("trigger_id")  # Not actually correct for thread – updated below
 
-        headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-        }
+    # Determine assignment group based on channel name
+    assignment_group = CHANNEL_TO_ASSIGNMENT_GROUP.get(channel_name, "General IT Support")
+    logging.info(f"Resolved assignment group: {assignment_group}")
 
-        logging.info(f"Sending request to ServiceNow: {url} | Payload: {payload}")
-        response = requests.post(url, json=payload, auth=(SERVICENOW_USER, SERVICENOW_PASSWORD), headers=headers)
+    # Call ServiceNow to create incident
+    servicenow_url = f"{SERVICENOW_INSTANCE}/api/now/table/incident"
+    payload = {
+        "short_description": f"Slack issue from {user_name}",
+        "description": message_text,
+        "assignment_group": assignment_group,
+        "caller_id": user_name
+    }
 
-        if response.status_code != 201:
-            logging.error(f"ServiceNow error: {response.status_code} - {response.text}")
-            return jsonify({"error": "Failed to create incident", "details": response.text}), 500
+    logging.info(f"Sending request to ServiceNow: {servicenow_url} | Payload: {payload}")
 
-        incident = response.json()['result']
-        incident_number = incident['number']
-        logging.info(f"Created ServiceNow incident: {incident_number}")
+    response = requests.post(
+        servicenow_url,
+        auth=(SERVICENOW_USERNAME, SERVICENOW_PASSWORD),
+        headers={"Content-Type": "application/json", "Accept": "application/json"},
+        json=payload
+    )
 
-        # ✅ Post message to Slack (in thread)
-        slack_url = "https://slack.com/api/chat.postMessage"
-        slack_headers = {
-            "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
-            "Content-Type": "application/json"
-        }
-        slack_payload = {
-            "channel": channel_id,
-            "text": f":white_check_mark: ServiceNow ticket *{incident_number}* created successfully.",
-        }
+    if response.status_code != 201:
+        logging.error(f"ServiceNow error: {response.status_code} - {response.text}")
+        return jsonify({"status": "failed", "error": "Failed to create ticket"}), 500
 
-        # If original message had thread_ts, reply in thread
-        if thread_ts:
-            slack_payload["thread_ts"] = thread_ts
+    incident_number = response.json()["result"]["number"]
+    logging.info(f"Created ServiceNow incident: {incident_number}")
 
-        slack_resp = requests.post(slack_url, json=slack_payload, headers=slack_headers)
-        if not slack_resp.ok:
-            logging.error(f"Failed to post to Slack: {slack_resp.status_code} - {slack_resp.text}")
+    # Post confirmation back to Slack in same channel/thread
+    slack_payload = {
+        "channel": channel_id,
+        "text": f"✅ Created ServiceNow incident: *{incident_number}* for your report.",
+        # You can hardcode or fetch the thread_ts based on your setup
+    }
+
+    headers = {
+        "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
+        "Content-Type": "application/json"
+    }
+
+    slack_response = requests.post("https://slack.com/api/chat.postMessage", json=slack_payload, headers=headers)
+
+    # --- Slack API response logging for debugging ---
+    if slack_response.status_code != 200:
+        logging.error(f"Slack API error: {slack_response.status_code} - {slack_response.text}")
+    else:
+        slack_json = slack_response.json()
+        if not slack_json.get("ok"):
+            logging.error(f"Slack postMessage failed: {slack_json}")
         else:
-            logging.info("Posted confirmation to Slack thread.")
+            logging.info(f"Slack message posted successfully to channel {channel_id}")
 
-        # ✅ Respond quickly to Slack (only user sees this)
-        return jsonify(
-            {
-                "response_type": "ephemeral",
-                "text": f"Creating your ServiceNow ticket... (Incident: {incident_number})"
-            }
-        ), 200
+    return jsonify({"incident": incident_number, "status": "ok"})
 
-    except Exception as e:
-        logging.exception("Unhandled error during Slack request")
-        return jsonify({"error": "Server error", "details": str(e)}), 500
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+if __name__ == "__main__":
+    app.run(debug=True, port=5000)
