@@ -93,8 +93,43 @@ def handle_slack_form():
         logging.exception("Unhandled error during Slack request")
         return jsonify({"error": "Server error", "details": str(e)}), 500
 
+@app.route('/notify_resolved', methods=['POST'])
+def notify_resolved():
+    data = request.get_json()
+    logging.info(f"Received resolved incident notification: {data}")
+
+    channel_id = data.get("channel_id")
+    thread_ts = data.get("thread_ts")
+    incident_number = data.get("incident_number")
+
+    if not (channel_id and thread_ts and incident_number):
+        return jsonify({"error": "Missing required fields"}), 400
+
+    message = f":white_check_mark: Incident *{incident_number}* has been resolved in ServiceNow."
+
+    slack_headers = {
+        "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
+        "Content-Type": "application/json"
+    }
+
+    slack_payload = {
+        "channel": channel_id,
+        "thread_ts": thread_ts,
+        "text": message
+    }
+
+    slack_resp = requests.post("https://slack.com/api/chat.postMessage", json=slack_payload, headers=slack_headers)
+    
+    if not slack_resp.ok:
+        logging.error(f"Failed to post resolved update to Slack: {slack_resp.status_code} - {slack_resp.text}")
+        return jsonify({"error": "Slack error", "details": slack_resp.text}), 500
+
+    logging.info("Resolved incident notification posted to Slack.")
+    return jsonify({"status": "ok"}), 200
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
 
 
 
