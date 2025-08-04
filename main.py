@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO)
 SERVICENOW_INSTANCE = "dev351449.service-now.com"
 SERVICENOW_USER = "admin"
 SERVICENOW_PASSWORD = "az5CI1uA!Mm@"
-SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN", "xoxb-YOUR-SLACK-TOKEN")
+SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN", "xoxb-9290586945379-9317287104928-CXa3TNqNtnFujcYt5GT7B4pC")
 
 @app.route('/')
 def index():
@@ -24,9 +24,10 @@ def handle_slack_form():
 
         user = data.get('user_name')
         text = data.get('text')
-        thread_ts = data.get('thread_ts') or data.get('ts')
         channel_id = data.get('channel_id')
         channel_name = data.get('channel_name', '').lower()
+        response_url = data.get('response_url')
+        thread_ts = data.get('thread_ts') or data.get('trigger_id') or None
 
         # Map Slack channel name to assignment group
         channel_to_assignment_group = {
@@ -60,31 +61,31 @@ def handle_slack_form():
 
         if response.status_code != 201:
             logging.error(f"ServiceNow error: {response.status_code} - {response.text}")
-            return jsonify({"error": "Failed to create incident", "details": response.text}), 500
+            requests.post(response_url, json={
+                "text": f":x: Failed to create incident in ServiceNow: {response.text}",
+                "response_type": "ephemeral"
+            })
+            return "", 200
 
         incident = response.json()['result']
         incident_number = incident['number']
         logging.info(f"Created ServiceNow incident: {incident_number}")
 
-        # Send reply to Slack thread
-        slack_url = "https://slack.com/api/chat.postMessage"
-        slack_headers = {
-            "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
-            "Content-Type": "application/json"
-        }
+        # Post to the channel using response_url
         slack_payload = {
-            "channel": channel_id,
-            "thread_ts": thread_ts,
-            "text": f":white_check_mark: Incident *{incident_number}* created in ServiceNow."
+            "text": f":white_check_mark: Incident *{incident_number}* created in ServiceNow.",
+            "response_type": "in_channel",  # This makes the message visible to everyone
+            "replace_original": False
         }
 
-        slack_resp = requests.post(slack_url, json=slack_payload, headers=slack_headers)
+        logging.info("Sending confirmation to Slack channel via response_url.")
+        slack_resp = requests.post(response_url, json=slack_payload)
         if not slack_resp.ok:
             logging.error(f"Failed to post to Slack: {slack_resp.status_code} - {slack_resp.text}")
         else:
             logging.info("Posted confirmation to Slack.")
 
-        return jsonify({"status": "ok", "incident": incident_number}, "created in SN"), 200
+        return "", 200
 
     except Exception as e:
         logging.exception("Unhandled error during Slack request")
@@ -92,6 +93,3 @@ def handle_slack_form():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
-
-
-
