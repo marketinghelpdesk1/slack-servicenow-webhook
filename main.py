@@ -49,7 +49,7 @@ def handle_slack_form():
             "description": text,
             "assignment_group": assignment_group,
             "u_slack_channel_id": channel_id,
-            "u_slack_thread_ts": thread_ts,
+        #    "u_slack_thread_ts": thread_ts,
             "caller_id": user
         }
 
@@ -114,7 +114,7 @@ def notify_resolved():
 
     slack_payload = {
         "channel": channel_id,
-        "thread_ts": thread_ts,
+      #  "thread_ts": thread_ts,
         "text": message
     }
 
@@ -129,6 +129,7 @@ def notify_resolved():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
 
 
 
