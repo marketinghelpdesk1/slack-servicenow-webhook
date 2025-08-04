@@ -1,21 +1,35 @@
 from flask import Flask, request, jsonify
+import logging
 
 app = Flask(__name__)
 
-@app.route('/slack', methods=['POST'])
-def slack_command():
-    data = request.form
-    user = data.get('user_name')
-    channel_id = data.get('channel_id')
-    text = data.get('text')
+# Enable basic logging
+logging.basicConfig(level=logging.INFO)
 
-    # Response to slash command (only visible to user)
-    response_text = f"Thanks {user}, we're processing your issue: '{text}'. A ticket will be created shortly."
+# Root route for test/debug in browser
+@app.route('/', methods=['GET'])
+def index():
+    return 'Slack Flask app is running!'
+
+# Slack Slash Command handler
+@app.route('/slack', methods=['POST'])
+def slack_handler():
+    data = request.form
+    logging.info("Received Slack data: %s", data)
+
+    user_id = data.get('user_id')
+    command = data.get('command')
+    text = data.get('text')
+    response_url = data.get('response_url')
+    channel_id = data.get('channel_id')
+
+    # Optional: you can route this to ServiceNow or logic here
+    message = f":ticket: <@{user_id}> reported an issue:\n{text}"
 
     return jsonify({
-        "response_type": "ephemeral",  # use "in_channel" to make it visible to everyone
-        "text": response_text
+        "response_type": "in_channel",  # "ephemeral" makes it visible only to the user
+        "text": message
     })
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=8000)
