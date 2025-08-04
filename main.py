@@ -48,6 +48,8 @@ def handle_slack_form():
             "short_description": f"Slack issue from {user}",
             "description": text,
             "assignment_group": assignment_group,
+            "u_slack_channel_id": channel_id,
+            "u_slack_thread_ts": thread_ts,
             "caller_id": user
         }
 
@@ -93,5 +95,6 @@ def handle_slack_form():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
 
 
