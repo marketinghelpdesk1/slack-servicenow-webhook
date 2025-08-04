@@ -27,7 +27,7 @@ def handle_slack_form():
         channel_id = data.get('channel_id')
         channel_name = data.get('channel_name', '').lower()
         response_url = data.get('response_url')
-        thread_ts = data.get('thread_ts') or data.get('trigger_id') or None
+        thread_ts = data.get('thread_ts')
 
         # Map Slack channel name to assignment group
         channel_to_assignment_group = {
@@ -129,6 +129,7 @@ def notify_resolved():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
 
 
 
