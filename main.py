@@ -114,7 +114,7 @@ def notify_resolved():
 
     slack_payload = {
         "channel": channel_id,
-    #    "thread_ts": thread_ts,
+        "thread_ts": thread_ts,
         "text": message
     }
 
@@ -129,6 +129,7 @@ def notify_resolved():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
 
 
 
