@@ -27,9 +27,7 @@ def handle_slack_form():
         channel_name = data.get('channel_name', '').lower()
         response_url = data.get('response_url')
 
-        # Get thread_ts if this is a thread reply — or fallback to message ts
-        thread_ts = data.get('thread_ts') or data.get('ts')
-
+        # Remove threading support (no thread_ts)
         channel_to_assignment_group = {
             'math-team': 'Math Support',
             'math team': 'Math Support',
@@ -41,14 +39,12 @@ def handle_slack_form():
 
         assignment_group = channel_to_assignment_group.get(channel_name, 'General IT Support')
 
-        # Prepare ServiceNow payload
         url = f"https://{SERVICENOW_INSTANCE}/api/now/table/incident"
         payload = {
             "short_description": f"Slack issue from {user}",
             "description": text,
             "assignment_group": assignment_group,
             "u_slack_channel_id": channel_id,
-            "u_slack_thread_ts": thread_ts,
             "caller_id": user
         }
 
@@ -72,7 +68,6 @@ def handle_slack_form():
         incident_number = incident['number']
         logging.info(f"Created ServiceNow incident: {incident_number}")
 
-        # Post confirmation
         slack_payload = {
             "text": f":white_check_mark: Good day! Incident *{incident_number}* has been created in ServiceNow and is currently under review. We'll update you soon. Thank you.",
             "response_type": "in_channel",
@@ -94,37 +89,40 @@ def handle_slack_form():
 
 @app.route('/notify_resolved', methods=['POST'])
 def notify_resolved():
-    data = request.get_json()
-    logging.info(f"Received resolved incident notification: {data}")
+    try:
+        data = request.get_json()
+        logging.info(f"Received resolved incident notification: {data}")
 
-    channel_id = data.get("channel_id")
-  #  thread_ts = data.get("thread_ts")
-    incident_number = data.get("incident_number")
+        channel_id = data.get("channel_id")
+        incident_number = data.get("incident_number")
 
-    if not (channel_id and thread_ts and incident_number):
-        return jsonify({"error": "Missing required fields"}), 400
+        if not (channel_id and incident_number):
+            return jsonify({"error": "Missing required fields"}), 400
 
-    message = f":white_check_mark: Incident *{incident_number}* has been resolved in ServiceNow."
+        message = f":white_check_mark: Incident *{incident_number}* has been resolved in ServiceNow."
 
-    slack_headers = {
-        "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
-        "Content-Type": "application/json"
-    }
+        slack_headers = {
+            "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
+            "Content-Type": "application/json"
+        }
 
-    slack_payload = {
-        "channel": channel_id,
-       # "thread_ts": thread_ts,
-        "text": message
-    }
+        slack_payload = {
+            "channel": channel_id,
+            "text": message
+        }
 
-    slack_resp = requests.post("https://slack.com/api/chat.postMessage", json=slack_payload, headers=slack_headers)
-    
-    if not slack_resp.ok:
-        logging.error(f"Failed to post resolved update to Slack: {slack_resp.status_code} - {slack_resp.text}")
-        return jsonify({"error": "Slack error", "details": slack_resp.text}), 500
+        slack_resp = requests.post("https://slack.com/api/chat.postMessage", json=slack_payload, headers=slack_headers)
 
-    logging.info("Resolved incident notification posted to Slack.")
-    return jsonify({"status": "ok"}), 200
+        if not slack_resp.ok:
+            logging.error(f"Failed to post resolved update to Slack: {slack_resp.status_code} - {slack_resp.text}")
+            return jsonify({"error": "Slack error", "details": slack_resp.text}), 500
+
+        logging.info("Resolved incident notification posted to Slack.")
+        return jsonify({"status": "ok"}), 200
+
+    except Exception as e:
+        logging.exception("Error in notify_resolved")
+        return jsonify({"error": "Server error", "details": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
