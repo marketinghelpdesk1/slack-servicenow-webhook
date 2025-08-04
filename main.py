@@ -6,11 +6,10 @@ import logging
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
-# Hardcoded for testing; replace with os.environ.get(...) in production
 SERVICENOW_INSTANCE = "dev351449.service-now.com"
 SERVICENOW_USER = "admin"
 SERVICENOW_PASSWORD = "az5CI1uA!Mm@"
-SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN", "xoxb-9290586945379-9317287104928-CXa3TNqNtnFujcYt5GT7B4pC")
+SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN", "xoxb-xxx")
 
 @app.route('/')
 def index():
@@ -27,9 +26,10 @@ def handle_slack_form():
         channel_id = data.get('channel_id')
         channel_name = data.get('channel_name', '').lower()
         response_url = data.get('response_url')
-        thread_ts = data.get('thread_ts')
 
-        # Map Slack channel name to assignment group
+        # Get thread_ts if this is a thread reply — or fallback to message ts
+        thread_ts = data.get('thread_ts') or data.get('ts')
+
         channel_to_assignment_group = {
             'math-team': 'Math Support',
             'math team': 'Math Support',
@@ -40,7 +40,6 @@ def handle_slack_form():
         }
 
         assignment_group = channel_to_assignment_group.get(channel_name, 'General IT Support')
-        logging.info(f"Resolved assignment group: {assignment_group}")
 
         # Prepare ServiceNow payload
         url = f"https://{SERVICENOW_INSTANCE}/api/now/table/incident"
@@ -49,7 +48,7 @@ def handle_slack_form():
             "description": text,
             "assignment_group": assignment_group,
             "u_slack_channel_id": channel_id,
-        #    "u_slack_thread_ts": thread_ts,
+            "u_slack_thread_ts": thread_ts,
             "caller_id": user
         }
 
@@ -73,14 +72,14 @@ def handle_slack_form():
         incident_number = incident['number']
         logging.info(f"Created ServiceNow incident: {incident_number}")
 
-        # Post to the channel using response_url
+        # Post confirmation
         slack_payload = {
             "text": f":white_check_mark: Good day! Incident *{incident_number}* has been created in ServiceNow and is currently under review. We'll update you soon. Thank you.",
-            "response_type": "in_channel",  # This makes the message visible to everyone
+            "response_type": "in_channel",
             "replace_original": False
         }
 
-        logging.info("Sending confirmation to Slack channel via response_url.")
+        logging.info("Sending confirmation to Slack via response_url.")
         slack_resp = requests.post(response_url, json=slack_payload)
         if not slack_resp.ok:
             logging.error(f"Failed to post to Slack: {slack_resp.status_code} - {slack_resp.text}")
@@ -114,7 +113,7 @@ def notify_resolved():
 
     slack_payload = {
         "channel": channel_id,
-      #  "thread_ts": thread_ts,
+        "thread_ts": thread_ts,
         "text": message
     }
 
@@ -129,11 +128,3 @@ def notify_resolved():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
-
-
-
-
-
-
-
-
