@@ -13,6 +13,11 @@ logging.basicConfig(level=logging.INFO)
 print("SLACK_BOT_TOKEN:", os.environ.get('SLACK_BOT_TOKEN'))
 print("SERVICENOW_PASSWORD:", os.environ.get('SERVICENOW_PASSWORD'))
 
+        SLACK_TOKEN_PART1 = "xoxb-9290586945379-"
+        SLACK_TOKEN_PART2 = "9317287104928-JBH99NZscno0vnePwMUJYEGT"
+
+        SLACK_BOT_TOKEN = SLACK_TOKEN_PART1 + SLACK_TOKEN_PART2
+
 SERVICENOW_INSTANCE = "dev351449.service-now.com"
 SERVICENOW_USER = "admin"
 SERVICENOW_PASSWORD = "az5CI1uA!Mm@"
@@ -122,12 +127,7 @@ def notify_resolved():
         }
         print("Using token:", SLACK_BOT_TOKEN)
         
-        
-        SLACK_TOKEN_PART1 = "xoxb-9290586945379-"
-        SLACK_TOKEN_PART2 = "9317287104928-JBH99NZscno0vnePwMUJYEGT"
-
-        SLACK_BOT_TOKEN = SLACK_TOKEN_PART1 + SLACK_TOKEN_PART2
-
+    
         
         slack_resp = requests.post("https://slack.com/api/chat.postMessage", headers=slack_headers, json=slack_payload)
         logging.info(f"Slack API response: {slack_resp.status_code}, {slack_resp.text}")
