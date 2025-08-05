@@ -120,7 +120,7 @@ def notify_resolved():
             logging.error(f"Failed to post resolved update to Slack: {slack_resp.status_code} - {slack_resp.text}")
             return jsonify({"error": "Slack error", "details": slack_resp.text}), 500
 
-        logging.info("Resolved incident notification posted to Slack.")
+        logging.info("Resolved incident notification posted to Slack." + SLACK_BOT_TOKEN)
         return jsonify({"status": "ok"}), 200
 
     except Exception as e:
