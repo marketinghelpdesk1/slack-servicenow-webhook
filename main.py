@@ -117,7 +117,7 @@ def notify_resolved():
 
     
         slack_headers = {
-            "Authorization": f"Bearer {SLACK_BOT_TOKEN3}",
+            "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
             "Content-Type": "application/json"
         }
 
