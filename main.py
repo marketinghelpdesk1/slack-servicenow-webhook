@@ -63,7 +63,7 @@ def handle_slack_form():
             "description": text,
             "assignment_group": assignment_group,
             "u_slack_channel_id": channel_id,
-             "u_slack_thread_ts": thread_ts
+             "u_slack_thread_ts": thread_ts,
             "caller_id": user
         }
 
