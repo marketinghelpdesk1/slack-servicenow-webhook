@@ -111,7 +111,7 @@ def notify_resolved():
         message = f":white_check_mark: Incident *{incident_number}* has been resolved in ServiceNow."
 
         slack_headers = {
-            "Authorization": f"Bearer xoxb-9290586945379-{SLACK_BOT_TOKEN}",
+            "Authorization": f"Bearer xoxb-9290586945379-+{SLACK_BOT_TOKEN}",
             "Content-Type": "application/json"
         }
 
