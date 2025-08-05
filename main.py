@@ -125,7 +125,7 @@ def notify_resolved():
             "channel": channel_id,
             "text": message
         }
-        print("Using token:", SLACK_BOT_TOKEN3)
+        print("Using token:", SLACK_BOT_TOKEN)
         
     
         
