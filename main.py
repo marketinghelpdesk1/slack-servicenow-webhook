@@ -113,6 +113,8 @@ def notify_resolved():
         }
 
         slack_resp = requests.post("https://slack.com/api/chat.postMessage", json=slack_payload, headers=slack_headers)
+        logging.info(f"Slack API response: {slack_resp.status_code}, {slack_resp.text}")
+        
 
         if not slack_resp.ok:
             logging.error(f"Failed to post resolved update to Slack: {slack_resp.status_code} - {slack_resp.text}")
