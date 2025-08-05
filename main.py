@@ -11,6 +11,7 @@ SERVICENOW_USER = "admin"
 SERVICENOW_PASSWORD = "az5CI1uA!Mm@"
 # SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN", "xoxb-9290586945379-9317287104928-D8hWv9cTl1uvzYYzZz9lDwXB")
 SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN")
+print("SLACK_BOT_TOKEN:", SLACK_BOT_TOKEN)  # TEMP: for debug
 
 @app.route('/')
 def index():
