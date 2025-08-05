@@ -7,6 +7,7 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
 print("SLACK_BOT_TOKEN:", os.environ.get("SLACK_BOT_TOKEN"))
+print("SERVICENOW_USER:", os.environ.get("SERVICENOW_USER"))
 
 SERVICENOW_INSTANCE = "dev351449.service-now.com"
 SERVICENOW_USER = "admin"
