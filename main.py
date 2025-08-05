@@ -9,7 +9,7 @@ logging.basicConfig(level=logging.INFO)
 SERVICENOW_INSTANCE = "dev351449.service-now.com"
 SERVICENOW_USER = "admin"
 SERVICENOW_PASSWORD = "az5CI1uA!Mm@"
-SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN", "xoxb-9290586945379-9317287104928-SVCzbqMbAf8dfdvoxQVUf703")
+SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN", "xoxb-9290586945379-9317287104928-D8hWv9cTl1uvzYYzZz9lDwXB")
 
 @app.route('/')
 def index():
