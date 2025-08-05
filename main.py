@@ -40,7 +40,11 @@ def handle_slack_form():
         channel_id = data.get('channel_id')
         channel_name = data.get('channel_name', '').lower()
         response_url = data.get('response_url')
-
+        
+        # Extract thread_ts (if in thread), else fall back to ts
+        thread_ts = data.get('thread_ts') or data.get('ts')
+        
+        
         # Remove threading support (no thread_ts)
         channel_to_assignment_group = {
             'math-team': 'Math Support',
@@ -59,6 +63,7 @@ def handle_slack_form():
             "description": text,
             "assignment_group": assignment_group,
             "u_slack_channel_id": channel_id,
+             "u_slack_thread_ts": thread_ts
             "caller_id": user
         }
 
@@ -109,7 +114,8 @@ def notify_resolved():
 
         channel_id = data.get("channel_id")
         incident_number = data.get("incident_number")
-
+        thread_ts = data.get("thread_ts")
+    
         if not (channel_id and incident_number):
             return jsonify({"error": "Missing required fields"}), 400
 
@@ -127,7 +133,8 @@ def notify_resolved():
         }
         print("Using token:", SLACK_BOT_TOKEN)
         
-    
+        if thread_ts:
+            slack_payload["thread_ts"] = thread_ts
         
         slack_resp = requests.post("https://slack.com/api/chat.postMessage", headers=slack_headers, json=slack_payload)
         logging.info(f"Slack API response: {slack_resp.status_code}, {slack_resp.text}")
