@@ -120,7 +120,7 @@ def notify_resolved():
             "text": message
         }
         print("Using token:", SLACK_BOT_TOKEN)
-        slack_resp = requests.post("https://slack.com/api/chat.postMessage", json=slack_payload, headers=slack_headers)
+        slack_resp = requests.post("https://slack.com/api/chat.postMessage", headers=slack_headers, json=slack_payload)
         logging.info(f"Slack API response: {slack_resp.status_code}, {slack_resp.text}")
         
 
