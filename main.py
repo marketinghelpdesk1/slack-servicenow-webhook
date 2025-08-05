@@ -110,11 +110,7 @@ def notify_resolved():
 
         message = f":white_check_mark: Incident *{incident_number}* has been resolved in ServiceNow."
 
-    SLACK_TOKEN_PART1 = "xoxb-9290586945379-"
-    SLACK_TOKEN_PART2 = "9317287104928-JBH99NZscno0vnePwMUJYEGT"
-
-    SLACK_BOT_TOKEN = SLACK_TOKEN_PART1 + SLACK_TOKEN_PART2
-
+    
         slack_headers = {
             "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
             "Content-Type": "application/json"
@@ -125,6 +121,14 @@ def notify_resolved():
             "text": message
         }
         print("Using token:", SLACK_BOT_TOKEN)
+        
+        
+        SLACK_TOKEN_PART1 = "xoxb-9290586945379-"
+        SLACK_TOKEN_PART2 = "9317287104928-JBH99NZscno0vnePwMUJYEGT"
+
+        SLACK_BOT_TOKEN = SLACK_TOKEN_PART1 + SLACK_TOKEN_PART2
+
+        
         slack_resp = requests.post("https://slack.com/api/chat.postMessage", headers=slack_headers, json=slack_payload)
         logging.info(f"Slack API response: {slack_resp.status_code}, {slack_resp.text}")
         
