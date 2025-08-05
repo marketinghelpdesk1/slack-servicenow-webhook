@@ -112,7 +112,7 @@ def notify_resolved():
             "channel": channel_id,
             "text": message
         }
-
+        print("Using token:", SLACK_BOT_TOKEN)
         slack_resp = requests.post("https://slack.com/api/chat.postMessage", json=slack_payload, headers=slack_headers)
         logging.info(f"Slack API response: {slack_resp.status_code}, {slack_resp.text}")
         
@@ -121,7 +121,7 @@ def notify_resolved():
             logging.error(f"Failed to post resolved update to Slack: {slack_resp.status_code} - {slack_resp.text}")
             return jsonify({"error": "Slack error", "details": slack_resp.text}), 500
 
-        logging.info("Resolved incident notification posted to Slack." + SLACK_BOT_TOKEN)
+        logging.info("Resolved incident notification posted to Slack.")
         return jsonify({"status": "ok"}), 200
 
     except Exception as e:
