@@ -16,7 +16,7 @@ print("SERVICENOW_PASSWORD:", os.environ.get('SERVICENOW_PASSWORD'))
 SLACK_TOKEN_PART1 = "xoxb-9290586945379-"
 SLACK_TOKEN_PART2 = "9317287104928-JBH99NZscno0vnePwMUJYEGT"
 
-SLACK_BOT_TOKEN = SLACK_TOKEN_PART1 + SLACK_TOKEN_PART2
+SLACK_BOT_TOKEN3 = SLACK_TOKEN_PART1 + SLACK_TOKEN_PART2
 
 SERVICENOW_INSTANCE = "dev351449.service-now.com"
 SERVICENOW_USER = "admin"
@@ -117,7 +117,7 @@ def notify_resolved():
 
     
         slack_headers = {
-            "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
+            "Authorization": f"Bearer {SLACK_BOT_TOKEN3}",
             "Content-Type": "application/json"
         }
 
@@ -125,7 +125,7 @@ def notify_resolved():
             "channel": channel_id,
             "text": message
         }
-        print("Using token:", SLACK_BOT_TOKEN)
+        print("Using token:", SLACK_BOT_TOKEN3)
         
     
         
