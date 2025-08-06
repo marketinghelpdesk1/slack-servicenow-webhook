@@ -11,8 +11,8 @@ logging.basicConfig(level=logging.INFO)
 
 # Compose Slack token from parts (to avoid detection)
 SLACK_BOT_TOKEN3 = os.environ.get("SLACK_TOKEN_PART1", "") + os.environ.get("SLACK_TOKEN_PART2", "")
-SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN")
 
+# ServiceNow credentials
 SERVICENOW_INSTANCE = "dev351449.service-now.com"
 SERVICENOW_USER = "admin"
 SERVICENOW_PASSWORD = "az5CI1uA!Mm@"
@@ -24,18 +24,31 @@ def index():
 @app.route('/slack', methods=['POST'])
 def handle_slack_form():
     try:
-        data = request.form
-        logging.info(f"Received Slack form data: {data}")
+        # Try to detect if it's a slash command (form) or link click (JSON)
+        if request.content_type == 'application/x-www-form-urlencoded':
+            data = request.form
+        else:
+            data = request.get_json()
 
-        user = data.get('user_name')
-        text = data.get('text')
-        channel_id = data.get('channel_id')
-        channel_name = data.get('channel_name', '').lower()
-        response_url = data.get('response_url')
-        
-        # Slack form data does not provide ts/thread_ts, so default is None
-        thread_ts = data.get('thread_ts') or data.get('ts') or None
+        logging.info(f"Received Slack data: {data}")
 
+        user = data.get('user_name') or data.get('user', {}).get('username')
+        text = data.get('text') or data.get('message', {}).get('text')
+        channel_id = data.get('channel_id') or data.get('channel', {}).get('id')
+        channel_name = data.get('channel_name', '').lower() or data.get('channel', {}).get('name', '').lower()
+        response_url = data.get('response_url') or data.get('response_url')
+
+        # Try to extract thread_ts from multiple possible sources
+        thread_ts = (
+            data.get('thread_ts') or
+            data.get('ts') or
+            data.get('message', {}).get('ts') or
+            data.get('container', {}).get('thread_ts') or
+            data.get('container', {}).get('message_ts') or
+            None
+        )
+
+        # Map channel to assignment group
         channel_to_assignment_group = {
             'math-team': 'Math Support',
             'math team': 'Math Support',
@@ -44,9 +57,9 @@ def handle_slack_form():
             'science team': 'Science Support',
             'science room': 'Science Support',
         }
-
         assignment_group = channel_to_assignment_group.get(channel_name, 'General IT Support')
 
+        # Create incident in ServiceNow
         url = f"https://{SERVICENOW_INSTANCE}/api/now/table/incident"
         payload = {
             "short_description": f"Slack issue from {user}",
@@ -62,42 +75,43 @@ def handle_slack_form():
             "Accept": "application/json"
         }
 
-        logging.info(f"Sending request to ServiceNow: {url} | Payload: {payload}")
+        logging.info(f"Sending to ServiceNow: {payload}")
         response = requests.post(url, json=payload, auth=(SERVICENOW_USER, SERVICENOW_PASSWORD), headers=headers)
 
         if response.status_code != 201:
             logging.error(f"ServiceNow error: {response.status_code} - {response.text}")
-            requests.post(response_url, json={
-                "text": f":x: Failed to create incident in ServiceNow: {response.text}",
-                "response_type": "ephemeral"
-            })
+            if response_url:
+                requests.post(response_url, json={
+                    "text": f":x: Failed to create incident in ServiceNow: {response.text}",
+                    "response_type": "ephemeral"
+                })
             return "", 200
 
         incident = response.json()['result']
         incident_number = incident['number']
-        logging.info(f"Created ServiceNow incident: {incident_number}")
+        logging.info(f"Created incident: {incident_number}")
 
         slack_payload = {
-            "text": f":white_check_mark: Good day! Incident *{incident_number}* has been created in ServiceNow and is currently under review. We'll update you soon. Thank you.",
+            "text": f":white_check_mark: Good day! Incident *{incident_number}* has been created in ServiceNow and is currently under review.",
             "response_type": "in_channel",
             "replace_original": False
         }
 
-        # Send back confirmation and try to get ts
-        logging.info("Sending confirmation to Slack via response_url.")
-        slack_resp = requests.post(response_url, json=slack_payload)
+        if response_url:
+            logging.info("Sending confirmation back to Slack via response_url.")
+            slack_resp = requests.post(response_url, json=slack_payload)
 
-        try:
-            slack_response_json = slack_resp.json()
-            confirmed_ts = slack_response_json.get("ts")
-            logging.info(f"Posted confirmation to Slack. ts: {confirmed_ts}")
-        except ValueError:
-            logging.warning(f"Slack response is not JSON. Status: {slack_resp.status_code}, Body: {slack_resp.text}")
+            try:
+                slack_response_json = slack_resp.json()
+                confirmed_ts = slack_response_json.get("ts")
+                logging.info(f"Posted confirmation. ts: {confirmed_ts}")
+            except ValueError:
+                logging.warning(f"Slack response not JSON. Body: {slack_resp.text}")
 
         return "", 200
 
     except Exception as e:
-        logging.exception("Unhandled error during Slack request")
+        logging.exception("Error in /slack handler")
         return jsonify({"error": "Server error", "details": str(e)}), 500
 
 @app.route('/notify_resolved', methods=['POST'])
@@ -135,7 +149,7 @@ def notify_resolved():
             logging.error(f"Failed to post resolved update to Slack: {slack_resp.status_code} - {slack_resp.text}")
             return jsonify({"error": "Slack error", "details": slack_resp.text}), 500
 
-        logging.info("Resolved incident notification posted to Slack.")
+        logging.info("Resolved notification posted to Slack.")
         return jsonify({"status": "ok"}), 200
 
     except Exception as e:
