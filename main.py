@@ -83,17 +83,16 @@ def handle_slack_form():
             "replace_original": False
         }
 
-        # Send back confirmation and get ts to use as thread_ts
+        # Send back confirmation and try to get ts
         logging.info("Sending confirmation to Slack via response_url.")
         slack_resp = requests.post(response_url, json=slack_payload)
 
-        if not slack_resp.ok:
-            logging.error(f"Failed to post to Slack: {slack_resp.status_code} - {slack_resp.text}")
-        else:
+        try:
             slack_response_json = slack_resp.json()
-            # Capture ts from confirmation message (for thread)
             confirmed_ts = slack_response_json.get("ts")
             logging.info(f"Posted confirmation to Slack. ts: {confirmed_ts}")
+        except ValueError:
+            logging.warning(f"Slack response is not JSON. Status: {slack_resp.status_code}, Body: {slack_resp.text}")
 
         return "", 200
 
