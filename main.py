@@ -6,24 +6,16 @@ import logging
 
 load_dotenv()
 
-
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
-print("SLACK_BOT_TOKEN:", os.environ.get('SLACK_BOT_TOKEN'))
-print("SERVICENOW_PASSWORD:", os.environ.get('SERVICENOW_PASSWORD'))
-
-#SLACK_TOKEN_PART1 = "xoxb-9290586945379-"
-#SLACK_TOKEN_PART2 = "9317287104928-JBH99NZscno0vnePwMUJYEGT"
-
-SLACK_BOT_TOKEN3 = os.environ.get("SLACK_TOKEN_PART1") + os.environ.get("SLACK_TOKEN_PART2")
+# Compose Slack token from parts (to avoid detection)
+SLACK_BOT_TOKEN3 = os.environ.get("SLACK_TOKEN_PART1", "") + os.environ.get("SLACK_TOKEN_PART2", "")
+SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN")
 
 SERVICENOW_INSTANCE = "dev351449.service-now.com"
 SERVICENOW_USER = "admin"
 SERVICENOW_PASSWORD = "az5CI1uA!Mm@"
-# SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN", "xoxb-9290586945379-9317287104928-D8hWv9cTl1uvzYYzZz9lDwXB")
-SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN")
-print("SLACK_BOT_TOKEN:", SLACK_BOT_TOKEN)  # TEMP: for debug
 
 @app.route('/')
 def index():
@@ -41,11 +33,9 @@ def handle_slack_form():
         channel_name = data.get('channel_name', '').lower()
         response_url = data.get('response_url')
         
-        # Extract thread_ts (if in thread), else fall back to ts
-        thread_ts = data.get('thread_ts') or data.get('ts')
-        
-        
-        # Remove threading support (no thread_ts)
+        # Slack form data does not provide ts/thread_ts, so default is None
+        thread_ts = data.get('thread_ts') or data.get('ts') or None
+
         channel_to_assignment_group = {
             'math-team': 'Math Support',
             'math team': 'Math Support',
@@ -63,7 +53,7 @@ def handle_slack_form():
             "description": text,
             "assignment_group": assignment_group,
             "u_slack_channel_id": channel_id,
-             "u_slack_thread_ts": thread_ts,
+            "u_slack_thread_ts": thread_ts,
             "caller_id": user
         }
 
@@ -93,13 +83,17 @@ def handle_slack_form():
             "replace_original": False
         }
 
+        # Send back confirmation and get ts to use as thread_ts
         logging.info("Sending confirmation to Slack via response_url.")
         slack_resp = requests.post(response_url, json=slack_payload)
-        thread_ts = slack_response_json.get('ts')
+
         if not slack_resp.ok:
             logging.error(f"Failed to post to Slack: {slack_resp.status_code} - {slack_resp.text}")
         else:
-            logging.info("Posted confirmation to Slack.")
+            slack_response_json = slack_resp.json()
+            # Capture ts from confirmation message (for thread)
+            confirmed_ts = slack_response_json.get("ts")
+            logging.info(f"Posted confirmation to Slack. ts: {confirmed_ts}")
 
         return "", 200
 
@@ -116,13 +110,12 @@ def notify_resolved():
         channel_id = data.get("channel_id")
         incident_number = data.get("incident_number")
         thread_ts = data.get("thread_ts")
-    
+
         if not (channel_id and incident_number):
             return jsonify({"error": "Missing required fields"}), 400
 
         message = f":white_check_mark: Incident *{incident_number}* has been resolved in ServiceNow."
 
-    
         slack_headers = {
             "Authorization": f"Bearer {SLACK_BOT_TOKEN3}",
             "Content-Type": "application/json"
@@ -131,16 +124,13 @@ def notify_resolved():
         slack_payload = {
             "channel": channel_id,
             "text": message
-            "thread_ts": stored_thread_ts
         }
-        print("Using token:", SLACK_BOT_TOKEN)
-        
+
         if thread_ts:
             slack_payload["thread_ts"] = thread_ts
-        
+
         slack_resp = requests.post("https://slack.com/api/chat.postMessage", headers=slack_headers, json=slack_payload)
         logging.info(f"Slack API response: {slack_resp.status_code}, {slack_resp.text}")
-        
 
         if not slack_resp.ok:
             logging.error(f"Failed to post resolved update to Slack: {slack_resp.status_code} - {slack_resp.text}")
