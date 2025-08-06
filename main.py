@@ -24,7 +24,7 @@ def index():
 @app.route('/slack', methods=['POST'])
 def handle_slack_form():
     try:
-        # Try to detect if it's a slash command (form) or link click (JSON)
+        # Detect if it's a slash command (form) or JSON (button or other event)
         if request.content_type == 'application/x-www-form-urlencoded':
             data = request.form
         else:
@@ -48,7 +48,7 @@ def handle_slack_form():
             None
         )
 
-        # Map channel to assignment group
+        # Map Slack channel to assignment group
         channel_to_assignment_group = {
             'math-team': 'Math Support',
             'math team': 'Math Support',
@@ -91,8 +91,31 @@ def handle_slack_form():
         incident_number = incident['number']
         logging.info(f"Created incident: {incident_number}")
 
+        # Slack confirmation with a button to view the incident
         slack_payload = {
-            "text": f":white_check_mark: Good day! Incident *{incident_number}* has been created in ServiceNow and is currently under review.",
+            "blocks": [
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f":white_check_mark: Good day! Incident *{incident_number}* has been created in ServiceNow and is currently under review."
+                    }
+                },
+                {
+                    "type": "actions",
+                    "elements": [
+                        {
+                            "type": "button",
+                            "text": {
+                                "type": "plain_text",
+                                "text": "View Incident"
+                            },
+                            "url": f"https://{SERVICENOW_INSTANCE}/nav_to.do?uri=incident.do?sysparm_query=number={incident_number}",
+                            "style": "primary"
+                        }
+                    ]
+                }
+            ],
             "response_type": "in_channel",
             "replace_original": False
         }
