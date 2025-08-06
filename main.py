@@ -95,6 +95,7 @@ def handle_slack_form():
 
         logging.info("Sending confirmation to Slack via response_url.")
         slack_resp = requests.post(response_url, json=slack_payload)
+        thread_ts = slack_response_json.get('ts')
         if not slack_resp.ok:
             logging.error(f"Failed to post to Slack: {slack_resp.status_code} - {slack_resp.text}")
         else:
@@ -130,6 +131,7 @@ def notify_resolved():
         slack_payload = {
             "channel": channel_id,
             "text": message
+            "thread_ts": stored_thread_ts
         }
         print("Using token:", SLACK_BOT_TOKEN)
         
